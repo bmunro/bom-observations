@@ -1,23 +1,26 @@
 package ben.com.weather;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
-import android.view.View;
+import android.util.TypedValue;
 import android.widget.EditText;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -26,38 +29,108 @@ import org.jsoup.select.Elements;
 
 public class MainActivity extends ActionBarActivity {
     private static final String DEBUG_TAG = "WeatherAppLog";
-    private EditText urlText;
-    private TextView textView;
+    private static final List<String> columns = Arrays.asList(
+		"obs-datetime",
+		"obs-temp",
+		"obs-apptemp",
+		"obs-dewpoint",
+		"obs-relhum",
+		"obs-delta-t",
+		"obs-wind obs-wind-dir",
+		"obs-wind obs-wind-spd-kph",
+		"obs-wind obs-wind-gust-kph",
+		"obs-wind obs-wind-spd-kts",
+		"obs-wind obs-wind-gust-kts",
+		"obs-press",
+		"obs-rainsince9am",
+		"obs-lowtemp",
+		"obs-hightemp",
+		"obs-highwind obs-highwind-dir",
+		"obs-highwind obs-highwind-gust-kph",
+		"obs-highwind obs-highwind-gust-kts"
+	);
 
-    @Override
+	private static final Map<String,String> displayColumns;
+	static {
+		displayColumns = new LinkedHashMap<String, String>();
+		displayColumns.put("obs-temp", "Temp");
+		displayColumns.put("obs-wind obs-wind-spd-kph", "Wind");
+	}
+
+	@Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //setContentView(R.layout.main);
-        //urlText = (EditText) findViewById(R.id.myUrl);
-        //textView = (TextView) findViewById(R.id.myText);
-        textView = new TextView(this);
-        textView.setText("test");
-        setContentView(textView);
+        setContentView(R.layout.activity_main);
 
-        String stringUrl = "http://www.bom.gov.au/nsw/observations/sydney.shtml"; //urlText.getText().toString();
+        String stringUrl = "http://www.bom.gov.au/nsw/observations/sydney.shtml";
         ConnectivityManager connMgr = (ConnectivityManager)
                 getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+
         if (networkInfo != null && networkInfo.isConnected()) {
             new DownloadRegionObsTask().execute(stringUrl);
         } else {
+	        TextView textView = new TextView(this);
             textView.setText("No network connection available.");
+	        setContentView(textView);
         }
     }
 
-    // Uses AsyncTask to create a task away from the main UI thread. This task takes a
-    // URL string and uses it to create an HttpUrlConnection. Once the connection
-    // has been established, the AsyncTask downloads the contents of the webpage as
-    // an InputStream. Finally, the InputStream is converted into a string, which is
-    // displayed in the UI by the AsyncTask's onPostExecute method.
-    private class DownloadRegionObsTask extends AsyncTask<String, Void, String> {
+    private void displayData(ArrayList<HashMap<String,String>> region) {
+	    Resources r = getResources();
+	    int locationWidth = (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 120, r.getDisplayMetrics());
+	    int cellWidth = (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, r.getDisplayMetrics());
+		TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
+
+	    TableRow header = new TableRow(this);
+	    TextView locationHeading = new TextView(this);
+	    locationHeading.setText("Station");
+	    header.addView(locationHeading);
+	    for (String column : displayColumns.keySet()) {
+		    TextView columnHeading = new TextView(this);
+		    columnHeading.setText(displayColumns.get(column));
+		    header.addView(columnHeading);
+	    }
+	    tl.addView(header);
+
+	    int row = 0;
+
+	    for (HashMap<String,String> observations : region) {
+		    TableRow tr = new TableRow(this);
+
+		    if (row % 2 == 0) {
+			    tr.setBackgroundResource(R.color.teal50);
+		    } else {
+			    tr.setBackgroundResource(R.color.teal100);
+		    }
+
+		    Log.d(DEBUG_TAG, "observations: " + observations.toString());
+		    TextView location = new TextView(this);
+		    location.setText(observations.get("station"));
+		    location.setWidth(locationWidth);
+		    tr.addView(location);
+
+		    Log.d(DEBUG_TAG, "station: " + observations.get("station"));
+		    for (String column : displayColumns.keySet()) {
+			    Log.d(DEBUG_TAG, "station: " + column + " = " + observations.get(column));
+			    TextView cell = new TextView(this);
+			    cell.setText(observations.get(column));
+			    cell.setWidth(cellWidth);
+			    tr.addView(cell);
+		    }
+
+		    tl.addView(tr);
+
+		    row++;
+	    }
+		//setContentView(tl);
+    }
+
+    private class DownloadRegionObsTask extends AsyncTask<String, Void, ArrayList<HashMap<String,String>>> {
         @Override
-        protected String doInBackground(String... urls) {
+        protected ArrayList<HashMap<String,String>> doInBackground(String... urls) {
+
+            ArrayList region = new ArrayList<HashMap<String,String>>();
 
             // params comes from the execute() call: params[0] is the url.
             try {
@@ -65,19 +138,30 @@ public class MainActivity extends ActionBarActivity {
                 //Elements tempElement = document.select("td[headers=\"obs-temp obs-station-sydney-observatory-hill\"]");
                 Elements rows = document.select("tr.rowleftcolumn");
                 for (Element stationRow : rows) {
-                    String station = stationRow.select("a").html();
-                    String temperature = stationRow.select("[headers^=\"obs-temp\"]").html();
-                    Log.d(DEBUG_TAG, "The temperature at " + station + " is " + temperature);
+                    HashMap<String,String> observations = new HashMap<String,String>();
+                    
+                    observations.put("station", stationRow.select("a").html());
+
+                    for (String column : columns) {
+                        String observation = stationRow.select("[headers^=\"" + column + "\"]").html();
+                        observations.put(column, observation);
+                    }
+
+                    region.add(observations);
                 }
-                return "test";
+
             } catch (IOException e) {
-                return "Unable to retrieve web page. URL may be invalid.";
+                e.printStackTrace();
             }
+
+            return region;
         }
+	    
         // onPostExecute displays the results of the AsyncTask.
         @Override
-        protected void onPostExecute(String result) {
-            textView.setText(result);
+        protected void onPostExecute(ArrayList<HashMap<String,String>> region) {
+            Log.d(DEBUG_TAG, "DATA: " + region.toString());
+            displayData(region);
         }
     }
 }
