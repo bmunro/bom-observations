@@ -10,10 +10,12 @@ import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.widget.EditText;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -90,9 +92,13 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 		if (networkInfo != null && networkInfo.isConnected()) {
 			new DownloadRegionObsTask().execute(stringUrl);
 		} else {
-			TextView textView = new TextView(this);
-			textView.setText("No network connection available.");
-			setContentView(textView);
+			Context context = getApplicationContext();
+			CharSequence errorText = "No network connection available.";
+			int duration = Toast.LENGTH_SHORT;
+			Toast toast = Toast.makeText(context, errorText, duration);
+			toast.setGravity(Gravity.CENTER, 0, 0);
+			toast.show();
+			swipeLayout.setRefreshing(false);
 		}
 	}
 
