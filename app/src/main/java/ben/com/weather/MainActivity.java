@@ -6,6 +6,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.util.TypedValue;
@@ -27,7 +28,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements SwipeRefreshLayout.OnRefreshListener {
     private static final String DEBUG_TAG = "WeatherAppLog";
     private static final List<String> columns = Arrays.asList(
 		"obs-datetime",
@@ -57,24 +58,43 @@ public class MainActivity extends ActionBarActivity {
 		displayColumns.put("obs-wind obs-wind-spd-kph", "Wind");
 	}
 
+	private SwipeRefreshLayout swipeLayout;
+
 	@Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        String stringUrl = "http://www.bom.gov.au/nsw/observations/sydney.shtml";
-        ConnectivityManager connMgr = (ConnectivityManager)
-                getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+		swipeLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_container);
+		swipeLayout.setOnRefreshListener(this);
 
-        if (networkInfo != null && networkInfo.isConnected()) {
-            new DownloadRegionObsTask().execute(stringUrl);
-        } else {
-	        TextView textView = new TextView(this);
-            textView.setText("No network connection available.");
-	        setContentView(textView);
-        }
+		main();
+
     }
+
+	@Override
+	public void onRefresh() {
+		swipeLayout.setRefreshing(true);
+		main();
+	}
+
+	public void main() {
+		String stringUrl = "http://www.bom.gov.au/nsw/observations/sydney.shtml";
+		ConnectivityManager connMgr = (ConnectivityManager)
+				getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+
+		TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
+		tl.removeAllViews();
+
+		if (networkInfo != null && networkInfo.isConnected()) {
+			new DownloadRegionObsTask().execute(stringUrl);
+		} else {
+			TextView textView = new TextView(this);
+			textView.setText("No network connection available.");
+			setContentView(textView);
+		}
+	}
 
     private void displayData(ArrayList<HashMap<String,String>> region) {
 	    Resources r = getResources();
@@ -123,7 +143,6 @@ public class MainActivity extends ActionBarActivity {
 
 		    row++;
 	    }
-		//setContentView(tl);
     }
 
     private class DownloadRegionObsTask extends AsyncTask<String, Void, ArrayList<HashMap<String,String>>> {
@@ -162,6 +181,7 @@ public class MainActivity extends ActionBarActivity {
         protected void onPostExecute(ArrayList<HashMap<String,String>> region) {
             Log.d(DEBUG_TAG, "DATA: " + region.toString());
             displayData(region);
+	        swipeLayout.setRefreshing(false);
         }
     }
 }
