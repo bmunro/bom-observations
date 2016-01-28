@@ -11,7 +11,6 @@ import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.widget.EditText;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
