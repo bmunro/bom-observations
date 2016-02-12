@@ -1,5 +1,6 @@
 package ben.com.weather;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.res.Resources;
 import android.net.ConnectivityManager;
@@ -7,7 +8,6 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -16,7 +16,11 @@ import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,39 +28,40 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-public class MainActivity extends ActionBarActivity implements SwipeRefreshLayout.OnRefreshListener {
+public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRefreshListener {
     private static final String DEBUG_TAG = "WeatherAppLog";
     private static final List<String> columns = Arrays.asList(
-		"obs-datetime",
-		"obs-temp",
-		"obs-apptemp",
-		"obs-dewpoint",
-		"obs-relhum",
-		"obs-delta-t",
-		"obs-wind obs-wind-dir",
-		"obs-wind obs-wind-spd-kph",
-		"obs-wind obs-wind-gust-kph",
-		"obs-wind obs-wind-spd-kts",
-		"obs-wind obs-wind-gust-kts",
-		"obs-press",
-		"obs-rainsince9am",
-		"obs-lowtemp",
-		"obs-hightemp",
-		"obs-highwind obs-highwind-dir",
-		"obs-highwind obs-highwind-gust-kph",
-		"obs-highwind obs-highwind-gust-kts"
+		"-datetime",
+		"-temp",
+		"-apptemp",
+		"-dewpoint",
+		"-relhum",
+		"-delta-t",
+		"-wind-dir",
+		"-wind-spd-kph",
+		"-wind-gust-kph",
+		"-wind-spd-kts",
+		"-wind-gust-kts",
+		"-press",
+		"-rainsince9am",
+		"-lowtemp",
+		"-hightemp",
+		"-highwind-dir",
+		"-highwind-gust-kph",
+		"-highwind-gust-kts"
 	);
 
 	private static final Map<String,String> displayColumns;
 	static {
 		displayColumns = new LinkedHashMap<String, String>();
-		displayColumns.put("obs-temp", "Temp");
-		displayColumns.put("obs-wind obs-wind-spd-kph", "Wind");
+		displayColumns.put("-temp", "Temp");
+		displayColumns.put("-wind-spd-kph", "Wind");
 	}
 
 	private SwipeRefreshLayout swipeLayout;
@@ -64,7 +69,7 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 	@Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_region);
 
 		swipeLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_container);
 		swipeLayout.setOnRefreshListener(this);
@@ -80,7 +85,18 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 	}
 
 	public void main() {
-		String stringUrl = "http://www.bom.gov.au/nsw/observations/sydney.shtml";
+		String locationTag = getIntent().getExtras().getString("locationTag");
+		JSONObject jo = loadConfig();
+		String url = "";
+		try {
+			url = (String) jo.getJSONObject(locationTag).get("url");
+
+			Log.d("....", "url = " + url);
+		} catch (Exception e) {
+			Log.d("....", "got an error");
+			return;
+		}
+
 		ConnectivityManager connMgr = (ConnectivityManager)
 				getSystemService(Context.CONNECTIVITY_SERVICE);
 		NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
@@ -89,7 +105,7 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 		tl.removeAllViews();
 
 		if (networkInfo != null && networkInfo.isConnected()) {
-			new DownloadRegionObsTask().execute(stringUrl);
+			new DownloadRegionObsTask().execute(url);
 		} else {
 			Context context = getApplicationContext();
 			CharSequence errorText = "No network connection available.";
@@ -111,6 +127,7 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 	    TextView locationHeading = new TextView(this);
 	    locationHeading.setText("Station");
 	    header.addView(locationHeading);
+
 	    for (String column : displayColumns.keySet()) {
 		    TextView columnHeading = new TextView(this);
 		    columnHeading.setText(displayColumns.get(column));
@@ -156,10 +173,8 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 
             ArrayList region = new ArrayList<HashMap<String,String>>();
 
-            // params comes from the execute() call: params[0] is the url.
             try {
                 Document document = Jsoup.connect(urls[0]).get();
-                //Elements tempElement = document.select("td[headers=\"obs-temp obs-station-sydney-observatory-hill\"]");
                 Elements rows = document.select("tr.rowleftcolumn");
                 for (Element stationRow : rows) {
                     HashMap<String,String> observations = new HashMap<String,String>();
@@ -167,7 +182,7 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
                     observations.put("station", stationRow.select("a").html());
 
                     for (String column : columns) {
-                        String observation = stationRow.select("[headers^=\"" + column + "\"]").html();
+                        String observation = stationRow.select("[headers*=\"" + column + "\"]").html();
                         observations.put(column, observation);
                     }
 
@@ -189,4 +204,32 @@ public class MainActivity extends ActionBarActivity implements SwipeRefreshLayou
 	        swipeLayout.setRefreshing(false);
         }
     }
+
+	// TODO: Do this in a Singleton class or something so that we don't keep reloading it.
+	public JSONObject loadConfig(
+
+	) {
+
+		JSONObject config;
+
+		try {
+			// Stupid boilerplate to read file to string because Java is shite.
+			InputStream stream = getApplicationContext().getResources().openRawResource(R.raw.region);
+			InputStreamReader isReader = new InputStreamReader(stream, Charset.forName("utf-8"));
+			BufferedReader br = new BufferedReader(isReader);
+			StringBuilder sb = new StringBuilder();
+			String line;
+			while ((line = br.readLine()) != null) {
+				sb.append(line).append("\n");
+			}
+			String jsonString = sb.toString();
+			Log.d("Config", jsonString);
+			config = new JSONObject(jsonString);
+			return config;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new JSONObject();
+	}
 }

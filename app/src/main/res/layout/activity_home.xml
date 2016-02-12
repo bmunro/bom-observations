@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+             android:id="@+id/hometable"
+             android:layout_width="fill_parent"
+             android:layout_height="fill_parent">
+
+    <TableRow>
+        <TextView
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="@string/nsw"
+            android:id="@+id/textView"/>
+
+        <Button
+            android:text="@string/nsw_sydney"
+            android:id="@+id/button"
+            android:tag="SYDNEY"
+            android:onClick="buttonClick"
+            style="@style/Theme.Weather.HomeScreenButton"/>
+
+        <Button
+            android:text="@string/nsw_all"
+            android:id="@+id/button2"
+            android:tag="NSWALL"
+            android:onClick="buttonClick"
+            style="@style/Theme.Weather.HomeScreenButton"/>
+
+        <Button
+            android:text="@string/nsw_coastal"
+            android:id="@+id/button3"
+            android:tag="NSWCOAST"
+            android:onClick="buttonClick"
+            style="@style/Theme.Weather.HomeScreenButton"/>
+    </TableRow>
+
+    <TableRow>
+        <TextView
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="@string/vic"
+            android:id="@+id/textView"/>
+
+        <Button
+            android:text="@string/vic_melbourne"
+            android:id="@+id/button"
+            android:tag="MELBOURNE"
+            android:onClick="buttonClick"
+            style="@style/Theme.Weather.HomeScreenButton"/>
+
+        <Button
+            android:text="@string/vic_all"
+            android:id="@+id/button2"
+            android:tag="VICALL"
+            android:onClick="buttonClick"
+            style="@style/Theme.Weather.HomeScreenButton"/>
+
+        <Button
+            android:text="@string/vic_coastal"
+            android:id="@+id/button3"
+            android:tag="VICCOAST"
+            android:onClick="buttonClick"
+            style="@style/Theme.Weather.HomeScreenButton"/>
+    </TableRow>
+
+</TableLayout>
+
