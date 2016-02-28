@@ -57,6 +57,7 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 		"-highwind-gust-kts"
 	);
 
+	// TODO: make these configurable
 	private static final Map<String,String> displayColumns;
 	static {
 		displayColumns = new LinkedHashMap<String, String>();
@@ -86,26 +87,27 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 
 	public void main() {
 		String locationTag = getIntent().getExtras().getString("locationTag");
-		JSONObject jo = loadConfig();
+		JSONObject jo = loadConfig(R.raw.regions);
 		String url = "";
+		String htmlFormat = "";
 		try {
 			url = (String) jo.getJSONObject(locationTag).get("url");
-
+			htmlFormat = (String) jo.getJSONObject(locationTag).get("htmlFormat");
 			Log.d("....", "url = " + url);
 		} catch (Exception e) {
 			Log.d("....", "got an error");
 			return;
 		}
 
+		TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
+		tl.removeAllViews();
+
 		ConnectivityManager connMgr = (ConnectivityManager)
 				getSystemService(Context.CONNECTIVITY_SERVICE);
 		NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
 
-		TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
-		tl.removeAllViews();
-
 		if (networkInfo != null && networkInfo.isConnected()) {
-			new DownloadRegionObsTask().execute(url);
+			new DownloadRegionObsTask(url, htmlFormat).execute();
 		} else {
 			Context context = getApplicationContext();
 			CharSequence errorText = "No network connection available.";
@@ -121,8 +123,8 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 	    Resources r = getResources();
 	    int locationWidth = (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 120, r.getDisplayMetrics());
 	    int cellWidth = (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, r.getDisplayMetrics());
-		TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
 
+	    TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
 	    TableRow header = new TableRow(this);
 	    TextView locationHeading = new TextView(this);
 	    locationHeading.setText("Station");
@@ -167,19 +169,29 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 	    }
     }
 
-    private class DownloadRegionObsTask extends AsyncTask<String, Void, ArrayList<HashMap<String,String>>> {
+	private class DownloadRegionObsTask extends AsyncTask<Void, Void, ArrayList<HashMap<String,String>>> {
+		String url;
+		String htmlFormat;
+
+		public DownloadRegionObsTask(String url, String htmlFormat) {
+			this.url = url;
+			this.htmlFormat = htmlFormat;
+		}
+
         @Override
-        protected ArrayList<HashMap<String,String>> doInBackground(String... urls) {
+        protected ArrayList<HashMap<String,String>> doInBackground(Void... params) {
 
             ArrayList region = new ArrayList<HashMap<String,String>>();
 
             try {
-                Document document = Jsoup.connect(urls[0]).get();
+                Document document = Jsoup.connect(this.url).get();
                 Elements rows = document.select("tr.rowleftcolumn");
                 for (Element stationRow : rows) {
                     HashMap<String,String> observations = new HashMap<String,String>();
                     
                     observations.put("station", stationRow.select("a").html());
+
+	                JSONObject jo = loadConfig(R.raw.regionhtmlformat);
 
                     for (String column : columns) {
                         String observation = stationRow.select("[headers*=\"" + column + "\"]").html();
@@ -206,15 +218,13 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
     }
 
 	// TODO: Do this in a Singleton class or something so that we don't keep reloading it.
-	public JSONObject loadConfig(
-
-	) {
+	public JSONObject loadConfig(int configId) {
 
 		JSONObject config;
 
 		try {
 			// Stupid boilerplate to read file to string because Java is shite.
-			InputStream stream = getApplicationContext().getResources().openRawResource(R.raw.region);
+			InputStream stream = getApplicationContext().getResources().openRawResource(configId);
 			InputStreamReader isReader = new InputStreamReader(stream, Charset.forName("utf-8"));
 			BufferedReader br = new BufferedReader(isReader);
 			StringBuilder sb = new StringBuilder();

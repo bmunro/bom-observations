@@ -1,0 +1,42 @@
+{
+  "columns": [
+    "dateTime",
+    "temp",
+    "apptemp",
+    "dewpoint",
+    "relhum",
+    "delta-t",
+    "wind-dir",
+    "wind-spd-kph",
+    "wind-gust-kph",
+    "wind-spd-kts",
+    "wind-gust-kts",
+    "pressure",
+    "rainsince9am",
+    "lowtemp",
+    "hightemp",
+    "highwind-dir",
+    "highwind-gust-kph",
+    "highwind-gust-kts"
+  ],
+  "capital": {
+    "dateTime":          "obs-datetime",
+    "temp":              "obs-temp",
+    "apptemp":           "obs-apptemp",
+    "dewpoint":          "obs-dewpoint",
+    "relhum":            "obs-relhum",
+    "delta-t":           "obs-delta-t",
+    "wind-dir":          "obs-wind-dir",
+    "wind-spd-kph":      "obs-wind-spd-kph",
+    "wind-gust-kph":     "obs-wind-gust-kph",
+    "wind-spd-kts":      "obs-wind-spd-kts",
+    "wind-gust-kts":     "obs-wind-gust-kts",
+    "pressure":          "obs-press",
+    "rainsince9am":      "obs-rainsince9am",
+    "lowtemp":           "obs-lowtemp",
+    "hightemp":          "obs-hightemp",
+    "highwind-dir":      "obs-highwind-dir",
+    "highwind-gust-kph": "obs-highwind-gust-kph",
+    "highwind-gust-kts": "obs-highwind-gust-kts"
+  }
+}
