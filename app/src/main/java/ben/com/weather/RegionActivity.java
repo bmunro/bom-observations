@@ -16,11 +16,7 @@ import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,22 +34,22 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 	private static final String DEBUG_TAG = "WeatherAppLog";
 	private static final List<String> columns = Arrays.asList(
 		"-datetime",
-		"-temp",
-		"-apptemp",
+		"-tmp",
+		"-apptmp",
 		"-dewpoint",
 		"-relhum",
 		"-delta-t",
 		"-wind-dir",
-		"-wind-spd-kph",
-		"-wind-gust-kph",
+		"-wind-spd-kmh",
+		"-wind-gust-kmh",
 		"-wind-spd-kts",
 		"-wind-gust-kts",
 		"-press",
 		"-rainsince9am",
-		"-lowtemp",
-		"-hightemp",
+		"-lowtmp",
+		"-hightmp",
 		"-highwind-dir",
-		"-highwind-gust-kph",
+		"-highwind-gust-kmh",
 		"-highwind-gust-kts"
 	);
 
@@ -61,8 +57,12 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 	private static final Map<String,String> displayColumns;
 	static {
 		displayColumns = new LinkedHashMap<String, String>();
-		displayColumns.put("-temp", "Temp");
-		displayColumns.put("-wind-spd-kph", "Wind");
+		displayColumns.put("-tmp", "Temp");
+		displayColumns.put("-dewpoint", "DP");
+		displayColumns.put("-wind-spd-kmh", "Wind");
+		displayColumns.put("-lowtmp", "Low");
+		displayColumns.put("-hightmp", "High");
+		displayColumns.put("-rainsince9am", "Rain");
 	}
 
 	private SwipeRefreshLayout swipeLayout;
@@ -86,18 +86,9 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 	}
 
 	public void main() {
-		String locationTag = getIntent().getExtras().getString("locationTag");
-		JSONObject jo = loadConfig(R.raw.regions);
-		String url = "";
-		String htmlFormat = "";
-		try {
-			url = (String) jo.getJSONObject(locationTag).get("url");
-			htmlFormat = (String) jo.getJSONObject(locationTag).get("htmlFormat");
-			Log.d("....", "url = " + url);
-		} catch (Exception e) {
-			Log.d("....", "got an error");
-			return;
-		}
+		// TODO don't create a new object each time.
+		String url = new Config().getRegionUrl(this);
+		String htmlFormat = new Config().getRegionFormat(this);
 
 		TableLayout tl = (TableLayout) findViewById(R.id.regiontable);
 		tl.removeAllViews();
@@ -182,20 +173,27 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 		protected ArrayList<HashMap<String,String>> doInBackground(Void... params) {
 
 			ArrayList region = new ArrayList<HashMap<String,String>>();
+			Config config = new Config();
+			//String
 
 			try {
 				Document document = Jsoup.connect(this.url).get();
 				Elements rows = document.select("tr.rowleftcolumn");
 				for (Element stationRow : rows) {
 					HashMap<String,String> observations = new HashMap<String,String>();
-
+					Log.d("Row", stationRow.select("a").html());
 					observations.put("station", stationRow.select("a").html());
 
-					JSONObject jo = loadConfig(R.raw.regionhtmlformat);
+					//loadConfig(R.raw.regionhtmlformat);
 
 					for (String column : columns) {
 						String observation = stationRow.select("[headers*=\"" + column + "\"]").html();
+
+						// Throw away the time of the observation
+						// e.g. 21.5<br><small>09:20pm</small> becomes 21.5
+						observation = observation.split("<")[0];
 						observations.put(column, observation);
+						Log.d("col", column + " = " + observation);
 					}
 
 					region.add(observations);
@@ -215,31 +213,5 @@ public class RegionActivity extends Activity implements SwipeRefreshLayout.OnRef
 			displayData(region);
 			swipeLayout.setRefreshing(false);
 		}
-	}
-
-	// TODO: Do this in a Singleton class or something so that we don't keep reloading it.
-	public JSONObject loadConfig(int configId) {
-
-		JSONObject config;
-
-		try {
-			// Stupid boilerplate to read file to string because Java is shite.
-			InputStream stream = getApplicationContext().getResources().openRawResource(configId);
-			InputStreamReader isReader = new InputStreamReader(stream, Charset.forName("utf-8"));
-			BufferedReader br = new BufferedReader(isReader);
-			StringBuilder sb = new StringBuilder();
-			String line;
-			while ((line = br.readLine()) != null) {
-				sb.append(line).append("\n");
-			}
-			String jsonString = sb.toString();
-			Log.d("Config", jsonString);
-			config = new JSONObject(jsonString);
-			return config;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return new JSONObject();
 	}
 }
